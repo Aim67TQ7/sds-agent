@@ -1,0 +1,129 @@
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-card: #222533;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --accent: #4a9eff;
+  --accent-hover: #6db3ff;
+  --danger: #ff4444;
+  --warning: #ffaa00;
+  --success: #44cc44;
+  --border: #2d3040;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+.app-layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 220px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar h2 { padding: 0 20px 20px; font-size: 16px; color: var(--accent); border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+.sidebar button {
+  display: block; width: 100%; padding: 12px 20px; background: none;
+  border: none; color: var(--text-secondary); text-align: left;
+  cursor: pointer; font-size: 14px; transition: all 0.15s;
+}
+.sidebar button:hover { background: var(--bg-card); color: var(--text-primary); }
+.sidebar button.active { background: var(--bg-card); color: var(--accent); border-left: 3px solid var(--accent); }
+.sidebar .logout { margin-top: auto; color: var(--danger); border-top: 1px solid var(--border); }
+
+.main-content { flex: 1; padding: 30px; max-width: 1200px; }
+.main-content h1 { font-size: 24px; margin-bottom: 20px; }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+.stat-card .value { font-size: 28px; font-weight: 700; color: var(--accent); }
+.stat-card .label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+input, select, textarea {
+  width: 100%; padding: 10px 14px; background: var(--bg-primary);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-primary); font-size: 14px; margin-bottom: 12px;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+textarea { min-height: 80px; resize: vertical; }
+
+.btn {
+  padding: 10px 20px; border: none; border-radius: 6px;
+  cursor: pointer; font-size: 14px; font-weight: 600;
+  transition: all 0.15s; display: inline-block;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-secondary { background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn + .btn { margin-left: 8px; }
+
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 8px;
+  padding: 40px; text-align: center; cursor: pointer;
+  transition: border-color 0.2s; margin-bottom: 16px;
+}
+.upload-zone:hover { border-color: var(--accent); }
+.upload-zone.dragging { border-color: var(--accent); background: rgba(74, 158, 255, 0.05); }
+
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+}
+.badge-current { background: rgba(68, 204, 68, 0.15); color: var(--success); }
+.badge-expired { background: rgba(255, 68, 68, 0.15); color: var(--danger); }
+.badge-expiring { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+.badge-missing { background: rgba(255, 68, 68, 0.15); color: var(--danger); }
+.badge-danger { background: rgba(255, 68, 68, 0.15); color: var(--danger); }
+.badge-warning { background: rgba(255, 170, 0, 0.15); color: var(--warning); }
+
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 10px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 140px); }
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px 0; }
+.chat-message { padding: 12px 16px; margin-bottom: 8px; border-radius: 8px; max-width: 85%; }
+.chat-message.user { background: var(--accent); color: #fff; margin-left: auto; }
+.chat-message.agent { background: var(--bg-card); border: 1px solid var(--border); }
+.chat-input { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.chat-input input { flex: 1; margin-bottom: 0; }
+
+.emergency-card { border-left: 4px solid var(--danger); }
+.emergency-card h3 { color: var(--danger); margin-bottom: 8px; }
+
+.pictogram-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.pictogram { width: 50px; height: 50px; border: 2px solid var(--danger); transform: rotate(45deg); display: flex; align-items: center; justify-content: center; font-size: 10px; }
+
+.label-preview { background: #fff; color: #000; padding: 20px; border-radius: 4px; margin: 16px 0; font-family: 'Courier New', monospace; }
+.label-preview .signal-danger { background: #ff0000; color: #fff; padding: 4px 12px; font-weight: bold; font-size: 18px; display: inline-block; margin: 8px 0; }
+.label-preview .signal-warning { background: #ff8800; color: #fff; padding: 4px 12px; font-weight: bold; font-size: 18px; display: inline-block; margin: 8px 0; }
+
+.login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.login-box { background: var(--bg-card); padding: 40px; border-radius: 12px; width: 380px; border: 1px solid var(--border); }
+.login-box h1 { text-align: center; margin-bottom: 8px; color: var(--accent); }
+.login-box p { text-align: center; color: var(--text-secondary); margin-bottom: 24px; font-size: 14px; }
+.error-msg { color: var(--danger); font-size: 13px; margin-bottom: 12px; }
+
+.compat-warning { background: rgba(255, 68, 68, 0.1); border: 1px solid var(--danger); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }

@@ -1,0 +1,57 @@
+version: '3.8'
+
+# Co-located on Maggie VPS (89.116.157.23)
+# Caddy handled by n0v8v stack — we join its network
+
+services:
+  sds-postgres:
+    image: postgres:15-alpine
+    container_name: sds-postgres
+    environment:
+      POSTGRES_DB: sds_gp3
+      POSTGRES_USER: sds_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - sds-pgdata:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:5436:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sds_admin -d sds_gp3"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sds-net
+
+  sds-backend:
+    build: ./backend
+    container_name: sds-backend
+    environment:
+      DATABASE_URL: postgresql://sds_app:${DB_APP_PASSWORD}@sds-postgres:5432/sds_gp3
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+    volumes:
+      - ./kernels:/app/kernels:ro
+      - sds-uploads:/app/uploads
+    depends_on:
+      sds-postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8201:8000"
+    restart: unless-stopped
+    networks:
+      - sds-net
+      - n0v8v_n0v8v-net
+
+volumes:
+  sds-pgdata:
+  sds-uploads:
+
+networks:
+  sds-net:
+    name: sds-net
+  n0v8v_n0v8v-net:
+    external: true

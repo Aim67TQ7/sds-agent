@@ -1,0 +1,24 @@
+# Append this block to /opt/n0v8v/Caddyfile
+
+sds.gp3.app {
+    handle /auth/* {
+        reverse_proxy sds-backend:8000
+    }
+    handle /sds/* {
+        reverse_proxy sds-backend:8000
+    }
+    handle /health {
+        reverse_proxy sds-backend:8000
+    }
+    handle /docs {
+        reverse_proxy sds-backend:8000
+    }
+    handle /openapi.json {
+        reverse_proxy sds-backend:8000
+    }
+    handle {
+        root * /opt/sds-web
+        try_files {path} /index.html
+        file_server
+    }
+}
