@@ -30,7 +30,7 @@ services:
     container_name: sds-backend
     environment:
       DATABASE_URL: postgresql://sds_app:${DB_APP_PASSWORD}@sds-postgres:5432/sds_gp3
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       SECRET_KEY: ${SECRET_KEY}
       ENVIRONMENT: ${ENVIRONMENT:-production}
     volumes:

@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import Response
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-from anthropic import Anthropic
+import google.generativeai as genai
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt, JWTError
@@ -42,7 +42,7 @@ app.add_middleware(
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 SECRET_KEY = os.getenv("SECRET_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
@@ -51,7 +51,7 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=10)
 SessionLocal = sessionmaker(bind=engine)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
-anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
 
 # ============================================================
 # MODELS
@@ -260,25 +260,37 @@ def get_tenant_printer_config(tenant_id: str, db: Session) -> dict:
 
 
 def call_agent(kernel: str, user_message: str, context: str = "") -> dict:
-    """Call Claude with the composed kernel."""
+    """Call Gemini with the composed kernel."""
     messages_content = f"{context}\n\n{user_message}" if context else user_message
 
-    response = anthropic_client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=6000,
-        system=kernel,
-        messages=[{"role": "user", "content": messages_content}],
+    model = genai.GenerativeModel(
+        model_name="gemini-2.0-flash",
+        system_instruction=kernel,
     )
 
+    response = model.generate_content(
+        messages_content,
+        generation_config=genai.types.GenerationConfig(
+            max_output_tokens=6000,
+            temperature=0.2,
+        ),
+    )
+
+    # Gemini usage metadata
+    usage = response.usage_metadata
+    input_tokens = getattr(usage, 'prompt_token_count', 0) if usage else 0
+    output_tokens = getattr(usage, 'candidates_token_count', 0) if usage else 0
+
     return {
-        "text": response.content[0].text,
-        "input_tokens": response.usage.input_tokens,
-        "output_tokens": response.usage.output_tokens,
+        "text": response.text,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
     }
 
 
 def log_tokens(db: Session, tenant_id: str, user_id: str, request_type: str, agent_response: dict):
-    cost = (agent_response["input_tokens"] * 0.003 / 1000) + (agent_response["output_tokens"] * 0.015 / 1000)
+    # Gemini 2.0 Flash pricing: $0.10/1M input, $0.40/1M output
+    cost = (agent_response["input_tokens"] * 0.0001 / 1000) + (agent_response["output_tokens"] * 0.0004 / 1000)
     db.execute(text("""
         INSERT INTO token_usage (tenant_id, user_id, request_type, input_tokens, output_tokens, cost)
         VALUES (:tid, :uid, :rtype, :inp, :out, :cost)
