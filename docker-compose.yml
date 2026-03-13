@@ -26,7 +26,7 @@ services:
       - sds-net
 
   sds-backend:
-    build: ./backend
+    build: .
     container_name: sds-backend
     environment:
       DATABASE_URL: postgresql://sds_app:${DB_APP_PASSWORD}@sds-postgres:5432/sds_gp3
@@ -40,7 +40,7 @@ services:
       sds-postgres:
         condition: service_healthy
     ports:
-      - "127.0.0.1:8201:8000"
+      - "127.0.0.1:8320:8000"
     restart: unless-stopped
     networks:
       - sds-net

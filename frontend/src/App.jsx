@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react'
 
 const API = ''
-const getHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('sds_token')}` })
+const getHeaders = () => {
+  const h = {}
+  const token = localStorage.getItem('sds_token')
+  if (token) h['Authorization'] = `Bearer ${token}`
+  return h
+}
 const jsonHeaders = () => ({ ...getHeaders(), 'Content-Type': 'application/json' })
+const fetchOpts = (opts = {}) => ({ credentials: 'include', ...opts })
 
 // ============================================================
 // LOGIN
 // ============================================================
 function LoginPage({ onLogin }) {
+  const [showLegacy, setShowLegacy] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -19,6 +26,7 @@ function LoginPage({ onLogin }) {
     try {
       const res = await fetch(`${API}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
       const data = await res.json()
@@ -27,6 +35,26 @@ function LoginPage({ onLogin }) {
       onLogin(data)
     } catch (err) { setError(err.message) }
     setLoading(false)
+  }
+
+  if (!showLegacy) {
+    return (
+      <div className="login-container">
+        <div className="login-box" style={{ textAlign: 'center' }}>
+          <h1>SDS Agent</h1>
+          <p>Safety Data Sheet Management</p>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>Redirecting to GP3 login...</p>
+          <button className="btn btn-primary" style={{ width: '100%', marginBottom: 12 }}
+            onClick={() => { window.location.href = 'https://auth.gp3.app' }}>
+            Sign in with GP3
+          </button>
+          <button className="btn btn-secondary" style={{ width: '100%', fontSize: 12 }}
+            onClick={() => setShowLegacy(true)}>
+            Sign in with password
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -40,6 +68,10 @@ function LoginPage({ onLogin }) {
         <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
+        <button type="button" className="btn btn-secondary" style={{ width: '100%', marginTop: 8, fontSize: 12 }}
+          onClick={() => setShowLegacy(false)}>
+          Back to GP3 login
+        </button>
       </form>
     </div>
   )
@@ -52,7 +84,7 @@ function Dashboard() {
   const [data, setData] = useState(null)
 
   useEffect(() => {
-    fetch(`${API}/sds/dashboard`, { headers: getHeaders() })
+    fetch(`${API}/sds/dashboard`, { headers: getHeaders(), credentials: 'include' })
       .then(r => r.json()).then(setData).catch(console.error)
   }, [])
 
@@ -118,7 +150,7 @@ function UploadPage() {
     const form = new FormData()
     form.append('file', file)
     try {
-      const res = await fetch(`${API}/sds/upload`, { method: 'POST', headers: getHeaders(), body: form })
+      const res = await fetch(`${API}/sds/upload`, { method: 'POST', headers: getHeaders(), credentials: 'include', body: form })
       setResult(await res.json())
     } catch (err) { setResult({ status: 'error', message: err.message }) }
     setLoading(false)
@@ -192,7 +224,7 @@ function QuestionPage() {
     setLoading(true)
     try {
       const res = await fetch(`${API}/sds/question`, {
-        method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ question: q }),
+        method: 'POST', headers: jsonHeaders(), credentials: 'include', body: JSON.stringify({ question: q }),
       })
       const data = await res.json()
       setMessages(prev => [...prev, { role: 'agent', text: data.answer || data.message }])
@@ -243,14 +275,14 @@ function ChemicalsPage() {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ chemical_name: '', cas_number: '', manufacturer: '', storage_class: 'general_storage', location: '', critical: false })
 
-  const load = () => fetch(`${API}/sds/chemicals`, { headers: getHeaders() })
+  const load = () => fetch(`${API}/sds/chemicals`, { headers: getHeaders(), credentials: 'include' })
     .then(r => r.json()).then(d => setChemicals(d.chemicals || [])).catch(console.error)
 
   useEffect(() => { load() }, [])
 
   const addChemical = async (e) => {
     e.preventDefault()
-    await fetch(`${API}/sds/chemicals`, { method: 'POST', headers: jsonHeaders(), body: JSON.stringify(form) })
+    await fetch(`${API}/sds/chemicals`, { method: 'POST', headers: jsonHeaders(), credentials: 'include', body: JSON.stringify(form) })
     setShowAdd(false)
     setForm({ chemical_name: '', cas_number: '', manufacturer: '', storage_class: 'general_storage', location: '', critical: false })
     load()
@@ -334,7 +366,7 @@ function LabelsPage() {
   const [printing, setPrinting] = useState(false)
 
   useEffect(() => {
-    fetch(`${API}/sds/chemicals`, { headers: getHeaders() })
+    fetch(`${API}/sds/chemicals`, { headers: getHeaders(), credentials: 'include' })
       .then(r => r.json()).then(d => setChemicals((d.chemicals || []).filter(c => c.has_sds)))
   }, [])
 
@@ -343,7 +375,7 @@ function LabelsPage() {
     setLoading(true); setResult(null)
     try {
       const res = await fetch(`${API}/sds/label`, {
-        method: 'POST', headers: jsonHeaders(),
+        method: 'POST', headers: jsonHeaders(), credentials: 'include',
         body: JSON.stringify({ chemical_id: selected, label_type: labelType, label_size: labelType === 'ghs_primary' ? '4x6' : '2x1', quantity }),
       })
       setResult(await res.json())
@@ -356,7 +388,7 @@ function LabelsPage() {
     setPrinting(true)
     try {
       const res = await fetch(`${API}/sds/print`, {
-        method: 'POST', headers: jsonHeaders(),
+        method: 'POST', headers: jsonHeaders(), credentials: 'include',
         body: JSON.stringify({ chemical_id: selected, label_type: labelType, quantity }),
       })
       const data = await res.json()
@@ -444,7 +476,7 @@ function CompatibilityPage() {
   const [data, setData] = useState(null)
 
   useEffect(() => {
-    fetch(`${API}/sds/compatibility`, { headers: getHeaders() })
+    fetch(`${API}/sds/compatibility`, { headers: getHeaders(), credentials: 'include' })
       .then(r => r.json()).then(setData).catch(console.error)
   }, [])
 
@@ -505,7 +537,7 @@ function DownloadPage() {
     setLoading(true); setTextResult(null)
     try {
       const res = await fetch(`${API}/sds/download`, {
-        method: 'POST', headers: jsonHeaders(),
+        method: 'POST', headers: jsonHeaders(), credentials: 'include',
         body: JSON.stringify({ evidence_type: evidenceType, format }),
       })
       if (format === 'pdf') {
@@ -563,11 +595,27 @@ function DownloadPage() {
 export default function App() {
   const [user, setUser] = useState(null)
   const [page, setPage] = useState('dashboard')
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('sds_token')
-    if (token) setUser({ token })
+    // Try SSO first (cookies), then check localStorage token
+    fetch(`${API}/sds/dashboard`, { credentials: 'include', headers: getHeaders() })
+      .then(r => {
+        if (r.ok) {
+          setUser({ sso: true })
+        } else {
+          const token = localStorage.getItem('sds_token')
+          if (token) setUser({ token })
+        }
+      })
+      .catch(() => {
+        const token = localStorage.getItem('sds_token')
+        if (token) setUser({ token })
+      })
+      .finally(() => setChecking(false))
   }, [])
+
+  if (checking) return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--text-secondary)' }}>Checking authentication...</div>
 
   if (!user) return <LoginPage onLogin={(data) => setUser(data)} />
 

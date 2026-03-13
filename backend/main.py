@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import Response
+from fastapi.responses import Response, FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 import google.generativeai as genai
@@ -17,6 +18,16 @@ import io
 import uuid
 import json
 import socket
+import logging
+
+# SSO middleware
+try:
+    from gp3_auth import get_gp3_user
+    SSO_AVAILABLE = True
+except ImportError:
+    SSO_AVAILABLE = False
+
+logger = logging.getLogger("sds-agent")
 
 # ============================================================
 # APP SETUP
@@ -30,7 +41,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://sds.gp3.app"],
+    allow_origins=["https://sds.gp3.app", "https://auth.gp3.app", "https://gp3.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,7 +120,8 @@ def get_db():
     finally:
         db.close()
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def _legacy_verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Original JWT auth -- used as fallback when SSO is unavailable."""
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         return {
@@ -119,6 +131,42 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         }
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+async def verify_token(request: Request, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
+    """Dual-mode auth: try GP3 SSO cookies first, then fall back to legacy JWT."""
+    # 1. Try SSO
+    if SSO_AVAILABLE:
+        try:
+            profile = get_gp3_user(request)
+            allowed = profile.get("allowed_apps") or []
+            if "sds" in allowed or profile.get("role") == "admin":
+                return {
+                    "user_id": profile.get("auth_id") or profile.get("id"),
+                    "tenant_id": str(profile.get("tenant_id") or profile.get("company_id", "")),
+                    "role": profile.get("role", "user"),
+                    "_sso": True,
+                }
+            else:
+                logger.warning(f"SSO user {profile.get('email')} lacks 'sds' app access")
+        except HTTPException:
+            pass  # SSO failed, fall through to legacy
+        except Exception as e:
+            logger.warning(f"SSO check failed: {e}")
+
+    # 2. Fall back to legacy JWT
+    if credentials:
+        try:
+            payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+            return {
+                "user_id": payload["user_id"],
+                "tenant_id": payload["tenant_id"],
+                "role": payload.get("role", "user"),
+            }
+        except JWTError:
+            pass
+
+    raise HTTPException(status_code=401, detail="Not authenticated")
 
 def set_tenant_context(db: Session, tenant_id: str):
     db.execute(text("SET LOCAL app.current_tenant_id = :tid"), {"tid": tenant_id})
@@ -1163,3 +1211,20 @@ async def health():
         "version": "1.0.0",
         "timestamp": datetime.utcnow().isoformat(),
     }
+
+# ============================================================
+# FRONTEND STATIC FILES
+# ============================================================
+
+FRONTEND_DIR = Path("frontend/dist")
+
+if FRONTEND_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="static-assets")
+
+    @app.get("/{path:path}")
+    async def serve_frontend(path: str):
+        # Serve index.html for all non-API routes (SPA client-side routing)
+        file_path = FRONTEND_DIR / path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(FRONTEND_DIR / "index.html")
